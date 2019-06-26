@@ -1,0 +1,392 @@
+\documentclass{article}
+
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\mymax}{max}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\spanishdecimal{.}
+\usepackage{amsfonts}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{mathtools}
+\usepackage{float}
+\usepackage{scrextend}
+
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+
+\usepackage[colorlinks]{hyperref}
+\hypersetup{citecolor=green}
+\hypersetup{linkcolor=red}
+\hypersetup{urlcolor=blue}
+\usepackage{cleveref}
+
+
+
+\usepackage{listings}
+\usepackage{multirow}
+
+
+\newtheorem{theorem}{Teorema}
+\newtheorem{definition}{Definición}
+\newtheorem*{proposition}{Proposición}
+\newtheorem*{corollary}{Corolario}
+\newtheorem*{example}{Ejemplo}
+\newtheorem*{lemma}{Lema}
+\newtheorem*{hypothesis}{Hipótesis}
+
+\begin{document}
+
+\title{\textbf{Topologías Dinámicas en la Optimización por Cúmulo de Partículas para Problemas con Restricciones} \\
+  Borrador I y Proyecto Final}
+\author{
+  \textbf{Arturo Márquez-Flores} \\
+  Maestría en Inteligencia Artificial \\
+  Universidad Veracruzana \\
+  CIIA -- Centro de Investigación en Inteligencia Artificial \\
+  Sebastián Camacho
+  No 5, Xalapa, Ver., México 91000}
+\date{15 de Mayo del 2019}
+
+\maketitle
+
+\section*{Introducción}
+
+La optimización por cúmulo de partículas es un método de optimización estocástica basado en poblaciones propuesto por Kennedy y Eberhart en \cite{kennedy95}. Dos de sus ventajas más notables son su fácil implementación y su rápida convergencia a soluciones aceptables.
+
+\
+
+Desde 1995 se han propuesto numerosas modificaciones y variantes al modelo original. Como se menciona en la revisión de literatura en \cite{bonyadi17}, las principales limitaciones de PSO están relacionadas con su convergencia y con su invarianza ante transformaciones. Para superar estas limitaciones se han propuesto cambios en los parámetros; en particular, en la topología de comunicación entre los individuos de la población, los coeficientes del modelo y el tamaño poblacional. Por otro lado se han propuesto modificaciones a las reglas de actualización de velocidad y posición. Por último, se han propuesto modelos de \textit{hibridización}.
+
+\
+
+En general, las modificaciones y variantes que se han propuesto se han enfocado en problemas de optimización libres de restricciones. Aunque también existe literatura que estudia el desempeño del PSO en problemas con restricciones, esta es más limitada. 
+
+\
+
+Dentro del enfoque sin restricciones, la topología de comunicación en el PSO se ha limitado, por lo general, al caso del grafo completo (global best). Sin embargo, se ha estudiado cómo la modificación de la topología impacta sobre la convergencia y diversidad de la población. El consenso, según Blackwell y Kennedy, en \cite{blackwell18}, es que un grafo completo tiende a generar una convergencia más rápida, mientras estructuras con más \textit{localidad} como la topología de anillo tienden a favorecer la diversidad. A pesar de este consenso general, esta es un área sin resultados contundentes y existen todavía preguntas abiertas. Esto es aún más marcado tanto para el caso de problemas con restricciones como para el caso de topologías adaptativas. 
+
+\
+
+La importancia de estudiar la dinámica de las topologías de comunicación trasciende al caso específico del algoritmo PSO, e incluso al campo de cómputo evolutivo. En efecto, su relevancia general se muestra en la literatura reciente sobre \textit{cerebros sólidos y líquidos} en \cite{sole19} y \cite{vining19}, que propone estudiar las diferencias entre \textit{redes cognitivas} con conexiones estables (como las redes neuronales) y aquellas con conexiones inestables, determinadas por el movimiento de sus componentes, como las colonias de abejas, termitas, o sistemas inmunológicos.  
+
+\
+
+En este trabajo se propone estudiar con detalle el impacto de una topología de comunicación dinámica del PSO sobre la convergencia y diversidad de la población para el caso de problemas con restricciones.
+
+\newpage
+\section*{Revisión Bibliográfica}
+
+Desde la primera formulación del PSO en 1995 (\cite{kennedy95}), la primera investigación formal sobre el impacto de la topología de comunicación en el PSO sobre su desempeño aparece en \cite{kennedy99}, en el cual se estudian cuatro topologías diferentes: local, global, rueda y estrella. Estas topologías se experimentan en cuatro funciones de referencia, y la conclusión general es que la topología global fomenta la explotación del problema, mientras la topología local fomenta la exploración del problema. De tal manera, la convergencia bajo una topología global es más rápida que bajo una local. Siguiendo esta dirección, en \cite{kennedy02} y \cite{mendes04} se investigó el mismo descubrimiento con una formulación más general del PSO y más topologías. Sin embargo, dichos estudios fueron criticados por su falta de rigor estadístico. En \cite{engelbrecht13} una investigación estadísticamente más extensiva mostró que la diferencia en el desempeño del PSO con estas topologías es altamente dependiente de la función objetivo en cuestión. No obstante, más recientemente se muestra en \cite{blackwell18} que cuando se utiliza el modelo estándar de PSO el desempeño de topologías con más \textit{localidad} como la topología local es mejor en problemas \textit{más difíciles} ya que estas persisten cuando una topología global ya habría convergido. De tal manera, la rapidez de la topología global es una ventaja cuando los problemas son relativamente simples. 
+
+\
+
+Otras topologías han sido consideradas en la literatura, como la jerarquía dinámica en \cite{janson05}, la topología libre de escala en \cite{zhang11} y la topología de mundo pequeño en \cite{gong13}.
+
+\
+
+Por otro lado, se han propuesto topologías dinámicas para aprovechar las ventajas de exploración y explotación de las topologías local y global, respectivamente. En \cite{clerc06} se propone el algoritmo TRIBES en el cual la topología se adapta en el tiempo de acuerdo con la retroalimentación del desempeño. Por otro lado, en \cite{suganthan99} se desarrolla un algoritmo que inicialmente toma la topología local y gradualmente incrementa la vecindad hasta converger, al final de las iteraciones, en una topología global. Esto permite aprovechar la exploración en la fase inicial del algoritmo y la explotación en la fase final. En \cite{marinakis13} se propone un algoritmo similar. En \cite{lim14} los autores estudian diferentes grados de conectividad en la topología para variar la preferencia por la exploración o la explotación del algoritmo PSO-ITC.
+
+\
+
+En el área de PSO para problemas con restricciones (COP por sus siglas en inglés), \cite{parsopoulos02} fue uno de los primeros abordajes. En él se utilizaron funciones de penalización para lidear con las restricciones. Otros métodos para la satisfacción de restricciones como la preservación de soluciones factibles, la cercanía a la región factible y funciones de penalización fueron utilizados en  \cite{xiahoui02}, \cite{pulido04} y \cite{coath03}, respectivamente. Otras aproximaciones a este problema se encuentran en \cite{ulrich07}, \cite{he07}, \cite{bonyadi13} y \cite{elsayed13}.
+
+\
+
+En general, la investigación que se encuentra en la intersección entre topologías dinámicas y COPs es poca. Sin embargo, una referencia importante es el trabajo que comienza en \cite{bonyadi14} con el desarrollo de EMLPSO, que se basa en manejo de resticciones con nivel $\epsilon$ (ELCH). Este algoritmo es extendido en \cite{bonyadi14_2} con una topología dinámica que extiende la utilizada en \cite{suganthan99}.
+
+\newpage
+\section*{Marco Teórico}
+
+Un problema de optimización (minimización) se define de la siguiente manera. Dada una función $f: S \rightarrow \mathbb{R}$ ($S \subseteq \mathbb{R}^d$), se busca un $x \in S$ tal que $\forall x' \in A$ se tiene que $f(x) \leq f(x')$. El algoritmo de PSO (\cite{kennedy95}) cuenta con una \textit{población} de $N$ soluciones potenciales que contienen la siguiente información: 
+
+\begin{itemize}
+    \item Posición - $x_t^i \in S$ de la partícula $i$ en la iteración $t$. 
+    \item Velocidad - $v_t^i$ es la dirección y magnitud del movimiento de la partícula $i$ en la iteración $t$.
+    \item Mejor posición personal - $p_t^i$ es la mejor posición que la partícula $i$ ha visitado en las iteraciones $1 \dots t$.
+\end{itemize}{}
+
+En su forma más general, en cada iteración, y para cada partícula, se realiza una actualización de estos valores de acuerdo con las siguientes ecuaciones: 
+
+\begin{equation}
+    \label{velocity_update}
+    v_{t + 1}^i = \mu(x_t^i, v_t^i, N_t^i)
+\end{equation}{}
+
+\begin{equation}
+    \label{position_update}
+    x_{t + 1}^i = \xi(x_t^i, v_t^i)
+\end{equation}{}
+
+\begin{equation}
+    \label{pbest_update}
+    p_{t+1}^i = 
+     \begin{cases}
+      x_{t + 1}^i & \quad\text{if } f(x_{t + 1}^i) < f(p_{t}^i)\\
+       p_{t}^i & \quad\text{if } f(x_{t + 1}^i) \geq f(p_{t}^i)\\
+     \end{cases}
+\end{equation}{}
+
+En la ecuación \ref{velocity_update}, $N_t^i$ es el conjunto de vecinos de la partícula $i$ en el tiempo $t$; es decir, el conjunto de partículas que son adyacentes a $i$ bajo cierta topología en el tiempo $t$ \footnote{Asumimos que una partícula siempre es vecina de sí misma.}. Esto contiene la información de la mejor posición personal de cada vecino en dicha vecindad. De tal manera, la ecuación \ref{velocity_update} actualiza la velocidad de cada partícula, la ecuación \ref{position_update} actualiza la posición de cada partícula, y la ecuación \ref{pbest_update} actualiza la mejor posición personal obtenida para cada partícula.
+
+\
+
+En la versión original del PSO (\cite{kennedy95}),  el conjunto $N_t^i$ es igual al conjunto total de partículas involucradas; es decir, se considera una topología completamente conectada. Además, la ecuación \ref{velocity_update} se define de la siguiente manera: 
+
+\begin{equation}
+    \label{kennedy_pso}
+    v_{t + 1}^i = v_t^i + \phi_1 R_{1,t}^i(p_t^i- x_t^i) + \phi_2 R_{2,t}^i(g_t^i- x_t^i) 
+\end{equation}{}
+
+En esta ecuación $\phi_1$ y $\phi_2$ son dos números reales, mientras $R_{1,t}^i$ y $R_{2,t}^i$ son dos matrices diagonales de dimensión $d \times d$ con entradas aleatorias distribuidas $\mathcal{U}(0,1)$. Por otro lado, $g_t^i$ está dado por la siguiente ecuación:
+
+\begin{equation}
+    \label{gbest_update}
+    g_t^i = \argmax_{p_{t}^j \in P_t}  \{f(p_{t}^j): j \in N_t^i\}
+\end{equation}{}
+
+En esta ecuación, $P_t = \{p_t^k : k \in \{1,2, \dots N\}\}$.
+
+\ 
+
+En \cite{shi98}, se modificó el algoritmo para incluir el coeficiente $\omega$, de tal manera que la ecuación \ref{kennedy_pso} ahora se convierte en la siguiente:
+
+\begin{equation}
+    \label{shi_pso}
+    v_{t + 1}^i = \omega v_t^i + \phi_1 R_{1,t}^i(p_t^i- x_t^i) + \phi_2 R_{2,t}^i(g_t^i- x_t^i) 
+\end{equation}{}
+
+Con la ecuación \ref{shi_pso}, el pseudocódigo del algoritmo PSO es el que se muestra en el Algoritmo \ref{pso}.
+
+\
+
+\begin{algorithm}[H]
+\label{pso}
+\DontPrintSemicolon
+  \For{cada partícula i en enjambre}{
+  $\text{Inicializar posición, }$$x_0^i$$\text{, generando un vector distribuido uniformemente}$
+  $\text{en }$$[p_{lb}, p_{ub}]^d \subseteq S$ \\
+  $\text{Inicializar la mejor posición, }$$p_0^i$$\text{, evaluando la posición en la función}$ 
+  $\text{objetivo.}$ \\
+  $\text{Inicializar velocidad, }$$v_0^i$$\text{, generando un vector distribuido uniformemente
+  }$
+  $\text{en }$$[v_{lb}, v_{ub}]^d \subseteq S$ \\
+  $\text{Inicializar el \textit{mejor global}: }$$g_0^i = \argmax_{p_{0}^j \in P_0}  \{f(p_{0}^j): j \in N_0^i \}$
+  }
+  \While{criterio de terminación no se cumpla}{
+  \For{cada partícula i en enjambre}{
+  $\text{Actualizar velocidad con la ecuación \ref{velocity_update}}$ \\
+  $\text{Actualizar posición con la ecuación \ref{position_update}}$ \\
+  $\text{Actualizar mejor posición con la ecuación \ref{pbest_update}}$ \\
+  $\text{Actualizar el \textit{mejor global} con la ecuación \ref{gbest_update}}$ \\
+  }
+  }
+  \Return{$\argmax_{p_{t}^j \in P_t}  f(p_{t}^j)$}
+\caption{PSO}
+\end{algorithm}
+
+\
+
+El algoritmo \ref{pso} está diseñado para problemas de optimización sin restricciones. Un problema de optimización con restricciones (COP) es el siguiente. Dada una función $f: S \rightarrow \mathbb{R}$ ($S \subseteq \mathbb{R}^d$), se busca un $x \in S$ tal que $\forall x' \in A$ se tiene que $f(x) \leq f(x')$ y además se satisface que para toda $i = 1, \dots , p$, $g_i(x) \leq 0$ y para toda $j = 1, \dots , q$, $h_j(x) = 0$.
+
+\
+
+En este trabajo se propone una modificación simple al algoritmo general del PSO para resolver problemas de optimización con restricciones, siguiendo los pasos de \cite{suganthan99} y de \cite{xiahoui02}. Para esto especificamos varios aspectos relacionados al algoritmo general. Primeramente, dejamos los parámetros $p_{lb}$ y $p_{ub}$ indeterminados, pues estos dependerán del problema de optimización. Por otro lado, los parámetros $v_{lb}$ y $v_{ub}$ los definimos en 0 y 1, respectivamente. Además, nuestro criterio de terminación está regido por el número de iteraciones realizadas.
+
+\ 
+
+En este trabajo se adopta una topología dinámica que incrementa la \textit{conectividad} de las particulas en el tiempo, similar a la utilizada en \cite{suganthan99}. En particular, se considera una topología local que está caracterizada por las medidas de centralidad de grado de las partículas. Asumimos que la centralidad para todas las partículas es la misma. Inicialmente se considera la topología de centralidad 1 y la centralidad aumenta sucesivamente hasta llegar a $N - 1$; es decir, la topología converge a un grafo completamente conectado. Esta topología determina $N_t^i$ para toda $t$ y toda $i$, y, por lo tanto, también $g_t^i$. Para determinar el cambio en la topología aumentamos el grado de los nodos por $\ceil{(N - 1) / G}$ cada generación siempre y cuando el grado resultante sea menor a $N - 1$; en otro caso, se asigna un grado de $N - 1$. 
+
+\
+
+La segunda modificación relevante sigue el trabajo en \cite{xiahoui02}, donde se propone un método de preservación de soluciones factibles para lidear con problemas con restricciones (COPs). Esto afecta prácticamente todo el Algoritmo \ref{pso} ya que tanto las inicializaciones como la actualizaciones se realizan considerando sólo las soluciones que son factibles en el problema. Particularmente hay un cambio fuerte en el ciclo for de las líneas 1 a 5. La inicialización de la mejor posición sea realiza sólo si $x_0^i$ es factible, y el mejor global se determina, para cada $i$ considerando sólo el subconjunto de $N_0^i$ que es factible. Por otro lado, la actualización de la velocidad en la línea 8 se ve afectada y se desglosa en 4 casos posibles que se muestran en las siguientes ecuaciones, para cada $i$. Asumamos que $NF_t^i \subseteq N_t^i$  es el subconjunto de soluciones factibles de $N_t^i$, para toda $t$ e $i$.
+
+\
+
+Si al tiempo $t$ la partícula $i$ ha sido factible en alguna iteración (es decir, $p_t^i$ ha sido inicializada) entonces: 
+
+\begin{equation}
+    \label{my_pso1}
+    v_{t + 1}^i = \omega v_t^i + \phi_1 R_{1,t}^i(p_t^i- x_t^i) + \phi_2 R_{2,t}^i(g_t^i- x_t^i) 
+\end{equation}{}
+
+Si al tiempo $t$ la partícula $i$ no ha sido factible en alguna iteración (es decir, $p_t^i$ no ha sido inicializada) y $NF_t^i$ no es vacío entonces: 
+
+\begin{equation}
+    \label{my_pso2}
+    v_{t + 1}^i = \omega v_t^i + \phi_2 R_{2,t}^i(g_t^i- x_t^i) 
+\end{equation}{}
+
+Si al tiempo $t$ la partícula $i$ no ha sido factible en alguna iteración (es decir, $p_t^i$ no ha sido inicializada) y $NF_t^i$ es vacío entonces: 
+
+\begin{equation}
+    \label{my_pso3}
+    v_{t + 1}^i = \omega v_t^i +  r_t^i
+\end{equation}{}
+
+Donde $r_t^i$ es un vector de dimensión $d$ con entradas distribuidas $\mathcal{U}(-1,1)$.
+
+\
+
+Con estas dos modificaciones, tenemos el algoritmo modificado en Algoritmo \ref{my_pso}.
+
+\
+
+\begin{algorithm}[H]
+\label{my_pso}
+\DontPrintSemicolon
+$\text{Inicializar topología local con grado}$ $k = 1$ \\
+  \For{cada partícula i en enjambre}{
+  $\text{Inicializar posición, }$$x_0^i$$\text{, generando un vector distribuido uniformemente}$
+  $\text{en }$$[p_{lb}, p_{ub}]^d \subseteq S$ \\
+  \If{$x_0^i$ $\text{es factible}$}{
+  $\text{Inicializar la mejor posición, }$$p_0^i$$\text{, evaluando la posición en la función}$ 
+  $\text{objetivo.}$
+  }
+  $\text{Inicializar velocidad, }$$v_0^i$$\text{, generando un vector distribuido uniformemente}$
+  $\text{en }$$[v_{lb}, v_{ub}]^d \subseteq S$ \\
+  \If{$N_0^i \neq \emptyset$}{
+  $\text{Inicializar el \textit{mejor global}: }$$g_0^i = \argmax_{p_{0}^j \in P_0}  \{f(p_{0}^j): j \in N_0^i \}$
+  }
+  }
+  \For{cada generación g, hasta alcanzar G}{
+  \For{cada partícula i en enjambre}{
+  \If{$p_t^i$$\text{ ha sido inicializada}$}{
+  $\text{Actualizar velocidad con la ecuación \ref{my_pso1}}$ \\
+  }
+  \Else{
+  \If{$N_t^i \neq \emptyset$}{
+  $\text{Actualizar velocidad con la ecuación \ref{my_pso2}}$ \\
+  }
+  \Else{
+  $\text{Actualizar velocidad con la ecuación \ref{my_pso3}}$ \\
+  }
+  }
+  $\text{Actualizar posición con la ecuación \ref{position_update}}$ \\
+  \If{$x_{t + 1}^i$ $\text{es factible}$}{
+  $\text{Actualizar mejor posición con la ecuación \ref{pbest_update}}$ \\
+  }
+  \If{$N_{t+1}^i \neq \emptyset$}{
+  $\text{Actualizar el \textit{mejor global} con la ecuación \ref{gbest_update}}$ \\
+  }
+  }
+  \If{$k + \ceil{(N - 1) / g} < N - 1$}{
+  $\text{Aumentar grado topología a }$$k + \ceil{(N - 1) / g}$
+  }
+  \Else{
+  $\text{Aumentar grado topología a }$$N - 1$
+  }
+  }
+  \Return{$\argmax_{p_{t}^j \in P_t}  f(p_{t}^j)$}
+\caption{PSO}
+\end{algorithm}
+
+\
+
+\newpage
+\section*{Variables de Estudio y Métodos de Evaluación}
+
+Para hacer la evaluación nos guiaremos por el benchmark del \href{http://web.mysites.ntu.edu.sg/epnsugan/PublicSite/Shared%20Documents/CEC-2017/Constrained/Technical%20Report%20-%20CEC2017-%20Final.pdf}{reporte técnico} en \cite{suganthan16}, que incluye 28 COPs con dimensiones 10, 30, 50 y 100. Siguiendo el reporte, realizamos 25 corridas y se reporta la mejor solución encontrada después de 2000D, 10000D y 20000D evaluaciones en la función objetivo, donde D es la dimensionalidad del problema. Se reportará la mejor y la peor solución, la media, mediana y desviación estándar de las 25 corridas. Se incluirá el número de violaciones a las restricciones para diferentes grados de tolerancia (1, 0.01 y 0.0001). Además se reportará la tasa de factibilidad y la comlpejidad del algoritmo de acuerdo a lo definido en el reporte.
+
+\newpage
+\section*{Resultados Preliminares}
+
+Para obtener resultados preliminares en este primer borrador se utilizará un subconjunto de los COPs definidos en \cite{suganthan16}, que excluye problemas rotados \footnote{Además excluimos los desplazamientos del problema.}. En particular, consideramos los problemas C01, C03, C04, C06, C07, C11, C13 y C19, para dimensiones 10 y 30 y con límites de evaluaciones en la función objetivo en 2,000, 10,000 y 20,000. Reportamos la mejor y la peor solución, la media, mediana y desviación estándar de las 25 corridas. Para estos resultados preliminares omitimos las otras métricas del reporte técnico. 
+
+\
+
+En este experimento se utilizaron 200 partículas, 100 iteraciones, $c_1 = 0.6$, $c_2 = 0.3$ y $w = 0.4$. Los resultados pueden replicarse en \href{https://colab.research.google.com/github/arturomf94/PSO/blob/master/DTPSOCOP.ipynb}{este colab}, y la librería utilizada se encuentra en \href{https://github.com/arturomf94/pyswarms}{este repositorio}.
+
+\
+
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+\begin{table}[h!]
+\centering
+\caption{Resultados con dimensión = 10}
+\label{dim10}
+\begin{tabular}{|c|l|l|l|l|l|l|l|l|l|}
+\hline
+\textbf{FES}                                       & \multicolumn{1}{c|}{\textbf{Estadistica}} & \multicolumn{1}{c|}{\textbf{C01}} & \multicolumn{1}{c|}{\textbf{C03}} & \multicolumn{1}{c|}{\textbf{C04}} & \multicolumn{1}{c|}{\textbf{C06}} & \multicolumn{1}{c|}{\textbf{C07}} & \multicolumn{1}{c|}{\textbf{C11}} & \multicolumn{1}{c|}{\textbf{C13}} & \multicolumn{1}{c|}{\textbf{C19}} \\ \hline
+\multirow{5}{*}{\textbf{2x10\textasciicircum{}3}}  & \textbf{Mejor}                            & 1728.45                           & inf                               & 110.44                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 5111.24                           & inf                               & 196.47                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 3675.8                            & inf                               & 151.51                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 3875.8                            & inf                               & 146.77                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 963.4                             & inf                               & 23.37                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\multirow{5}{*}{\textbf{10x10\textasciicircum{}3}} & \textbf{Mejor}                            & 13.09                             & inf                               & 66.24                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 579.09                            & inf                               & 99.96                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 163.93                            & inf                               & 82.18                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 132.38                            & inf                               & 81.05                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 122.05                            & inf                               & 8.62                              & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\multirow{5}{*}{\textbf{20x10\textasciicircum{}3}} & \textbf{Mejor}                            & 8.60                              & inf                               & 53.82                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 220.06                            & inf                               & 99.00                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 75.88                             & inf                               & 73.61                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 60.97                             & inf                               & 73.61                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 61.06                             & inf                               & 9.46                              & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\end{tabular}
+\end{table}
+
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+\begin{table}[h!]
+\centering
+\caption{Resultados con dimensión = 30}
+\label{dim30}
+\begin{tabular}{|c|l|l|l|l|l|l|l|l|l|}
+\hline
+\textbf{FES}                                       & \multicolumn{1}{c|}{\textbf{Estadistica}} & \multicolumn{1}{c|}{\textbf{C01}} & \multicolumn{1}{c|}{\textbf{C03}} & \multicolumn{1}{c|}{\textbf{C04}} & \multicolumn{1}{c|}{\textbf{C06}} & \multicolumn{1}{c|}{\textbf{C07}} & \multicolumn{1}{c|}{\textbf{C11}} & \multicolumn{1}{c|}{\textbf{C13}} & \multicolumn{1}{c|}{\textbf{C19}} \\ \hline
+\multirow{5}{*}{\textbf{2x10\textasciicircum{}3}}  & \textbf{Mejor}                            & 14148.54                          & inf                               & 403.90                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 36858.93                          & inf                               & 567.68                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 24310.30                          & inf                               & 493.71                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 24310.30                          & inf                               & 499.35                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 5271.50                           & inf                               & 34.58                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\multirow{5}{*}{\textbf{10x10\textasciicircum{}3}} & \textbf{Mejor}                            & 640.94                            & inf                               & 275.07                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 2580.97                           & inf                               & 366.10                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 1501.79                           & inf                               & 327.44                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 1313.43                           & inf                               & 334.75                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 622.95                            & inf                               & 23.64                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\multirow{5}{*}{\textbf{20x10\textasciicircum{}3}} & \textbf{Mejor}                            & 454.26                            & 365255.92                         & 269.90                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Peor}                             & 2174.91                           & inf                               & 347.04                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Media}                            & 962.57                            & inf                               & 314.55                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Mediana}                          & 840.84                            & inf                               & 327.52                            & inf                               & inf                               & inf                               & inf                               & inf                               \\ \cline{2-10} 
+                                                   & \textbf{Des. Est.}                        & 397.25                            & inf                               & 24.18                             & inf                               & inf                               & inf                               & inf                               & inf                               \\ \hline
+\end{tabular}
+\end{table}
+
+\
+
+Como es evidente, el algoritmo propuesto no es competitivo para los COPs del benchmark. Estos resultados son preliminares y están limitados en dos sentidos importantes: primero, en el hecho de que los parámetros no han sido modificados, y segundo, en el hecho de que los límites de evaluaciones en la función objetivo son más restrictivos que en el benchmark. No obstante, el algoritmo muestra una debilidad muy fuerte en problemas con restricciones de igualdad como el C03, C06, C07 y C11, y en problemas con restricciones de desigualdad más complejos como el C13 y C19. 
+
+\
+
+Esto se explica de manera intuitiva porque el algoritmo considerado inicializa las posiciones sobre el espacio de soluciones de manera uniforme y posteriormente las partículas siguen un movimiento aleatorio si ninguna de ellas es factible. Para problemas con restricciones de igualdad y restricciones de desigualdad con conjuntos factibles \textit{muy pequeños}. 
+
+\
+
+Una posible solución a este problema sería modificar el algoritmo de tal manera que primero se busquen las regiones factibles mediante la minimización del valor absoluto de las restricciones, tanto de igualdad como de desigualdad. Este proceso podría realizarse hasta tener al menos una posición factible dentro del cúmulo, y, a partir de ahí, seguir con el planteamiento originial del algoritmo. Potencialmente esto podría tener un impacto fuerte y negativo sobre el costo computacional del algoritmo pero se conjetura que podría mejorar considerablemente el desempeño del algoritmo en problemas complejos.
+
+\
+
+Por último, para el próximo borrador se hará una búsqueda de mejores parámetros para los problemas planteados en el benchmark. 
+
+\newpage
+\section*{Hipótesis y Objetivos}
+
+\textit{Hipótesis:} El algoritmo planteado es competitivo en términos del benchmark definido en \cite{suganthan16}. 
+
+\textit{Objetivo: } Diseñar e implementar el algoritmo y mostrar mediante las variables de estudio y los métodos de evaluación planteadas el desempeño de tal.
+
+
+
+\newpage
+\bibliographystyle{alpha}
+\bibliography{refs} 
+
+\end{document}
